@@ -463,7 +463,7 @@ const Spreadsheet = () => {
   }, [selectedCell, editingCell, table]);
 
   // Calculate status counts (still useful if you want to use the total count)
-  const totalOrderCount = useMemo(() => data.length, [data]);
+ 
 
   const handleToolbarAction = (action: string) => {
     console.log(`${action} clicked`);
