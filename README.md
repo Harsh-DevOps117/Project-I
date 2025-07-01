@@ -1,6 +1,6 @@
 # 📊 React Spreadsheet
 
-> A pixel-perfect, interactive spreadsheet UI built using **React + TypeScript + Tailwind CSS** — developed as part of the React Internship Assignment for Inscripts.
+> A pixel-perfect, interactive spreadsheet UI built using **React + TypeScript + Tailwind CSS**
 
 ---
 
