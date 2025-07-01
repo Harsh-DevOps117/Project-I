@@ -731,7 +731,7 @@ const Spreadsheet = () => {
             {/* "All Orders" with green styling */}
             <div className="flex items-center">
               <span className="font-semibold text-green-700 bg-green-200 px-3 py-2 rounded-md border-t-4 border-green-500">
-                All Orders: {totalOrderCount}
+                All Orders
               </span>
             </div>
 
