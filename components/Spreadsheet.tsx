@@ -743,10 +743,11 @@ const Spreadsheet = () => {
         {/* Status Summary Bar - Sticky Bottom */}
         <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-gray-50 px-4 py-3 z-10">
           <div className="flex items-center space-x-6 text-sm">
+            <div className="flex items-center space-x-2"></div>
             <div className="flex items-center space-x-2">
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className=""text-green-600 bg-green-200 border-t-4 p-2">All Order</span>
+              <span className="text-green-600 bg-green-200 border-t-4 p-2">
+                All Order
+              </span>
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-gray-600">Pending</span>
