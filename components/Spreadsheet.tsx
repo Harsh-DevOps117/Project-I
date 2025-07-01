@@ -23,12 +23,12 @@ import {
 } from "lucide-react";
 
 interface SpreadsheetCell {
-   id?: number;
-  [key: string]: string | number;
+  id: number; // 'id' will always be a number
+  [key: string]: string | number; // This allows for dynamic string keys with string or number values
 }
 
 // Create initial data with many empty rows and columns
-const createInitialData = () => {
+const createInitialData = (): SpreadsheetCell[] => {
   const columns = [
     "A",
     "B",
@@ -114,9 +114,11 @@ const createInitialData = () => {
 
   // Add sample data
   sampleData.forEach((row, index) => {
+    // Explicitly cast row to SpreadsheetCell to allow string indexing
+    const typedRow = row as Record<string, string>;
     const dataRow: SpreadsheetCell = { id: index + 1 };
     columns.forEach((col) => {
-      dataRow[col] = row[col] || "";
+      dataRow[col] = typedRow[col] || ""; // Access with string index
     });
     data.push(dataRow);
   });
@@ -184,7 +186,7 @@ const Spreadsheet = () => {
 
   // Define column headers
   const columnHeaders = [
-    "",
+    "", // For the 'id' column
     "Job Request",
     "Submitted",
     "Status",
@@ -211,20 +213,32 @@ const Spreadsheet = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!selectedCell) return;
 
-      const table = document.querySelector("table");
-      if (!table) return;
+      const tableElement = document.querySelector("table");
+      if (!tableElement) return;
 
-      const rows = table.querySelectorAll("tbody tr");
+      const rows = Array.from(tableElement.querySelectorAll("tbody tr"));
       const currentRow = rows[selectedCell.rowIndex];
       if (!currentRow) return;
 
-      const cells = currentRow.querySelectorAll("td");
-      const currentCellIndex = Array.from(cells).findIndex(
+      // Filter out the 'id' column when determining navigable cells for column index
+      const cells = Array.from(currentRow.querySelectorAll("td")).filter(
+        (cell) => cell.getAttribute("data-column-id") !== "id"
+      );
+
+      const currentCellIndex = cells.findIndex(
         (cell) => cell.getAttribute("data-column-id") === selectedCell.columnId
       );
 
       let newRowIndex = selectedCell.rowIndex;
-      let newColumnIndex = currentCellIndex;
+      let newColumnId = selectedCell.columnId;
+
+      const columnIdsInOrder = table
+        .getAllColumns()
+        .filter((col) => col.id !== "id")
+        .map((col) => col.id);
+      const currentColumnGlobalIndex = columnIdsInOrder.indexOf(
+        selectedCell.columnId
+      );
 
       switch (e.key) {
         case "ArrowUp":
@@ -239,19 +253,25 @@ const Spreadsheet = () => {
           break;
         case "ArrowLeft":
           e.preventDefault();
-          newColumnIndex = Math.max(0, currentCellIndex - 1);
-          console.log(`Navigating left to column ${newColumnIndex + 1}`);
+          if (currentColumnGlobalIndex > 0) {
+            newColumnId = columnIdsInOrder[currentColumnGlobalIndex - 1];
+          }
+          console.log(`Navigating left to column ${newColumnId}`);
           break;
         case "ArrowRight":
           e.preventDefault();
-          newColumnIndex = Math.min(cells.length - 1, currentCellIndex + 1);
-          console.log(`Navigating right to column ${newColumnIndex + 1}`);
+          if (currentColumnGlobalIndex < columnIdsInOrder.length - 1) {
+            newColumnId = columnIdsInOrder[currentColumnGlobalIndex + 1];
+          }
+          console.log(`Navigating right to column ${newColumnId}`);
           break;
         case "Enter":
           e.preventDefault();
           setEditingCell(selectedCell);
           console.log(
-            `Editing cell: Row ${selectedCell.rowIndex + 1}, Column ${selectedCell.columnId}`
+            `Editing cell: Row ${selectedCell.rowIndex + 1}, Column ${
+              selectedCell.columnId
+            }`
           );
           break;
         case "Escape":
@@ -265,27 +285,20 @@ const Spreadsheet = () => {
 
       if (
         newRowIndex !== selectedCell.rowIndex ||
-        newColumnIndex !== currentCellIndex
+        newColumnId !== selectedCell.columnId
       ) {
-        const newRow = rows[newRowIndex];
-        const newCells = newRow.querySelectorAll("td");
-        const newCell = newCells[newColumnIndex];
-        const newColumnId = newCell?.getAttribute("data-column-id");
-
-        if (newColumnId) {
-          setSelectedCell({ rowIndex: newRowIndex, columnId: newColumnId });
-        }
+        setSelectedCell({ rowIndex: newRowIndex, columnId: newColumnId });
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [selectedCell]);
+  }, [selectedCell, table]); // Add 'table' to dependency array as its structure is used
 
   const updateCellValue = (
     rowIndex: number,
     columnId: string,
-    value: string
+    value: string | number // Value can be string or number based on SpreadsheetCell
   ) => {
     setData((prev) => {
       const newData = [...prev];
@@ -308,7 +321,7 @@ const Spreadsheet = () => {
     };
 
     data.forEach((row) => {
-      const status = row.C as string;
+      const status = row.C as string; // Ensure 'C' is treated as string for status
       if (status && counts.hasOwnProperty(status)) {
         counts[status as keyof typeof counts]++;
       }
@@ -332,34 +345,36 @@ const Spreadsheet = () => {
         enableResizing: false,
       }),
       // Data columns A-T with proper headers and wider sizes
-      ...[
-        "A",
-        "B",
-        "C",
-        "D",
-        "E",
-        "F",
-        "G",
-        "H",
-        "I",
-        "J",
-        "K",
-        "L",
-        "M",
-        "N",
-        "O",
-        "P",
-        "Q",
-        "R",
-        "S",
-        "T",
-      ].map((col, index) =>
+      ...(
+        [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H",
+          "I",
+          "J",
+          "K",
+          "L",
+          "M",
+          "N",
+          "O",
+          "P",
+          "Q",
+          "R",
+          "S",
+          "T",
+        ] as Array<keyof Omit<SpreadsheetCell, "id">> // Explicitly type the array of column IDs
+      ).map((col, index) =>
         columnHelper.accessor(col, {
-          header: columnHeaders[index + 1] || col,
+          header: columnHeaders[index + 1] || col, // Use columnHeaders for display
           cell: (info) => {
             const rowIndex = info.row.index;
             const columnId = info.column.id;
-            const value = info.getValue() as string;
+            const value = info.getValue() as string; // Assert value as string for display/input
             const isEditing =
               editingCell?.rowIndex === rowIndex &&
               editingCell?.columnId === columnId;
@@ -387,9 +402,11 @@ const Spreadsheet = () => {
             // Special styling for Status column (C)
             if (columnId === "C" && value) {
               return (
-                <div className="w-full h-full min-h-[20px] text-sm">
+                <div className="w-full h-full min-h-[20px] text-sm flex items-center">
                   <span
-                    className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${getStatusBadge(value)}`}
+                    className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${getStatusBadge(
+                      value
+                    )}`}
                   >
                     {value}
                   </span>
@@ -400,9 +417,11 @@ const Spreadsheet = () => {
             // Special styling for Priority column (G)
             if (columnId === "G" && value) {
               return (
-                <div className="w-full h-full min-h-[20px] text-sm">
+                <div className="w-full h-full min-h-[20px] text-sm flex items-center">
                   <span
-                    className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${getPriorityBadge(value)}`}
+                    className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${getPriorityBadge(
+                      value
+                    )}`}
                   >
                     {value}
                   </span>
@@ -411,35 +430,37 @@ const Spreadsheet = () => {
             }
 
             return (
-              <div className="w-full h-full min-h-[20px] text-sm">{value}</div>
+              <div className="w-full h-full min-h-[20px] text-sm flex items-center">
+                {value}
+              </div>
             );
           },
           // Set specific widths for different columns to prevent wrapping
           size:
-            index === 0
-              ? 5000 // Job Request - wider for long text
-              : index === 1
-                ? 120 // Submitted - date
-                : index === 2
-                  ? 130 // Status - badge
-                  : index === 3
-                    ? 150 // Submitter - name
-                    : index === 4
-                      ? 180 // URL - link
-                      : index === 5
-                        ? 150 // Assigned - name
-                        : index === 6
-                          ? 100 // Priority - badge
-                          : index === 7
-                            ? 1000 // Due Date - date
-                            : index === 8
-                              ? 120 // Est. Value - number
-                              : 100, // Other columns - default
+            index === 0 // "A" column (Job Request)
+              ? 500
+              : index === 1 // "B" column (Submitted)
+              ? 120
+              : index === 2 // "C" column (Status)
+              ? 130
+              : index === 3 // "D" column (Submitter)
+              ? 150
+              : index === 4 // "E" column (URL)
+              ? 180
+              : index === 5 // "F" column (Assigned)
+              ? 150
+              : index === 6 // "G" column (Priority)
+              ? 100
+              : index === 7 // "H" column (Due Date)
+              ? 120 // Adjusted to a more reasonable date width
+              : index === 8 // "I" column (Est. Value)
+              ? 120
+              : 100, // Other columns - default
         })
       ),
     ];
     return cols;
-  }, [editingCell, columnHeaders]);
+  }, [editingCell, columnHeaders, updateCellValue, columnHelper]); // Added columnHelper and updateCellValue to dependencies
 
   const table = useReactTable({
     data,
@@ -655,8 +676,9 @@ const Spreadsheet = () => {
                       </div>
                       {header.column.getCanResize() && (
                         <div
-                          className="absolute right-0 top-0 h-full w-1 bg-transparent hover:bg-blue-300 cursor-col-resize"
                           onMouseDown={header.getResizeHandler()}
+                          onTouchStart={header.getResizeHandler()} // Add touch support
+                          className="absolute right-0 top-0 h-full w-1 bg-transparent hover:bg-blue-300 cursor-col-resize"
                         />
                       )}
                     </th>
@@ -676,18 +698,21 @@ const Spreadsheet = () => {
                         selectedCell?.columnId === cell.column.id
                           ? "bg-blue-100 ring-1 ring-blue-500"
                           : ""
-                      } ${cell.column.id === "id" ? "bg-gray-50 text-center" : ""}`}
+                      } ${
+                        cell.column.id === "id" ? "bg-gray-50 text-center" : ""
+                      }`}
                       style={{ width: cell.column.getSize() }}
                       onClick={() => {
-                        if (cell.column.id !== "id") {
-                          setSelectedCell({
-                            rowIndex: index,
-                            columnId: cell.column.id,
-                          });
-                          console.log(
-                            `Cell selected: Row ${index + 1}, Column ${cell.column.id}`
-                          );
-                        }
+                        // Allow selection of 'id' column if needed, but not editing
+                        setSelectedCell({
+                          rowIndex: index,
+                          columnId: cell.column.id,
+                        });
+                        console.log(
+                          `Cell selected: Row ${index + 1}, Column ${
+                            cell.column.id
+                          }`
+                        );
                       }}
                       onDoubleClick={() => {
                         if (cell.column.id !== "id") {
@@ -696,7 +721,9 @@ const Spreadsheet = () => {
                             columnId: cell.column.id,
                           });
                           console.log(
-                            `Editing cell: Row ${index + 1}, Column ${cell.column.id}`
+                            `Editing cell: Row ${index + 1}, Column ${
+                              cell.column.id
+                            }`
                           );
                         }
                       }}
