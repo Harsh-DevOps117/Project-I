@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import {
   useReactTable,
@@ -19,7 +19,6 @@ import {
   Eye,
   MoreHorizontal,
   ArrowUpDown,
-  ChevronUp,
   Bell,
 } from "lucide-react";
 
@@ -170,7 +169,7 @@ const Spreadsheet = () => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
-  const [selectedRows, setSelectedRows] = useState<number[]>([]);
+
   const [selectedCell, setSelectedCell] = useState<{
     rowIndex: number;
     columnId: string;
