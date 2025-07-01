@@ -23,11 +23,10 @@ import {
 } from "lucide-react";
 
 interface SpreadsheetCell {
-  id: number; // 'id' will always be a number
-  [key: string]: string | number; // This allows for dynamic string keys with string or number values
+  id: number; 
+  [key: string]: string | number; 
 }
 
-// Create initial data with many empty rows and columns
 const createInitialData = (): SpreadsheetCell[] => {
   const columns = [
     "A",
@@ -53,7 +52,6 @@ const createInitialData = (): SpreadsheetCell[] => {
   ];
   const data: SpreadsheetCell[] = [];
 
-  // Add sample data for first few rows
   const sampleData = [
     {
       A: "Launch social media campaign for pro...",
@@ -112,18 +110,16 @@ const createInitialData = (): SpreadsheetCell[] => {
     },
   ];
 
-  // Add sample data
+
   sampleData.forEach((row, index) => {
-    // Explicitly cast row to Record<string, string | number> to allow string indexing
     const typedRow = row as Record<string, string | number>;
     const dataRow: SpreadsheetCell = { id: index + 1 };
     columns.forEach((col) => {
-      dataRow[col] = typedRow[col] || ""; // Access with string index
+      dataRow[col] = typedRow[col] || "";
     });
     data.push(dataRow);
   });
 
-  // Add 95 more empty rows (total 100 rows)
   for (let i = 5; i < 100; i++) {
     const emptyRow: SpreadsheetCell = { id: i + 1 };
     columns.forEach((col) => {
@@ -135,7 +131,7 @@ const createInitialData = (): SpreadsheetCell[] => {
   return data;
 };
 
-// Helper function to get status badge styling
+
 const getStatusBadge = (status: string) => {
   const statusLower = status.toLowerCase();
 
@@ -152,7 +148,6 @@ const getStatusBadge = (status: string) => {
   return "bg-gray-100 text-gray-800 border border-gray-200";
 };
 
-// Helper function to get priority badge styling
 const getPriorityBadge = (priority: string) => {
   const priorityLower = priority.toLowerCase();
 
@@ -168,7 +163,6 @@ const getPriorityBadge = (priority: string) => {
 };
 
 const Spreadsheet = () => {
-  // State declarations
   const [data, setData] = useState(createInitialData());
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -182,12 +176,12 @@ const Spreadsheet = () => {
     columnId: string;
   } | null>(null);
 
-  // Helper for column definitions
+
   const columnHelper = createColumnHelper<SpreadsheetCell>();
 
-  // Column Headers (no change here)
+  
   const columnHeaders = [
-    "", // For the 'id' column
+    "", 
     "Job Request",
     "Submitted",
     "Status",
@@ -209,12 +203,12 @@ const Spreadsheet = () => {
     "T",
   ];
 
-  // Cell value update function - Wrapped in useCallback for performance
+ 
   const updateCellValue = useCallback(
     (
       rowIndex: number,
       columnId: string,
-      value: string | number // Value can be string or number based on SpreadsheetCell
+      value: string | number 
     ) => {
       setData((prev) => {
         const newData = [...prev];
@@ -225,13 +219,13 @@ const Spreadsheet = () => {
         `Updated cell: Row ${rowIndex + 1}, Column ${columnId}, Value: ${value}`
       );
     },
-    [] // No dependencies as it uses the functional update for setData
+    [] 
   );
 
-  // Memoized column definitions
+  
   const columns = useMemo(() => {
     const cols = [
-      // Row number column
+     
       columnHelper.accessor("id", {
         header: "",
         cell: (info) => (
@@ -243,7 +237,7 @@ const Spreadsheet = () => {
         enableSorting: false,
         enableResizing: false,
       }),
-      // Data columns A-T with proper headers and wider sizes
+   
       ...(
         [
           "A",
@@ -269,11 +263,11 @@ const Spreadsheet = () => {
         ] as string[]
       ).map((col: string, index) =>
         columnHelper.accessor(col, {
-          header: columnHeaders[index + 1] || col, // Use columnHeaders for display
+          header: columnHeaders[index + 1] || col, 
           cell: (info) => {
             const rowIndex = info.row.index;
             const columnId = info.column.id;
-            const value = info.getValue() as string; // Assert value as string for display/input
+            const value = info.getValue() as string; 
             const isEditing =
               editingCell?.rowIndex === rowIndex &&
               editingCell?.columnId === columnId;
@@ -298,7 +292,7 @@ const Spreadsheet = () => {
               );
             }
 
-            // Special styling for Status column (C)
+           
             if (columnId === "C" && value) {
               return (
                 <div className="w-full h-full min-h-[20px] text-sm flex items-center">
@@ -313,7 +307,7 @@ const Spreadsheet = () => {
               );
             }
 
-            // Special styling for Priority column (G)
+          
             if (columnId === "G" && value) {
               return (
                 <div className="w-full h-full min-h-[20px] text-sm flex items-center">
@@ -334,34 +328,33 @@ const Spreadsheet = () => {
               </div>
             );
           },
-          // Set specific widths for different columns to prevent wrapping
+      
           size:
-            index === 0 // "A" column (Job Request)
+            index === 0 
               ? 500
-              : index === 1 // "B" column (Submitted)
+              : index === 1 
                 ? 120
-                : index === 2 // "C" column (Status)
+                : index === 2 
                   ? 130
-                  : index === 3 // "D" column (Submitter)
+                  : index === 3 
                     ? 150
-                    : index === 4 // "E" column (URL)
+                    : index === 4 
                       ? 180
-                      : index === 5 // "F" column (Assigned)
+                      : index === 5 
                         ? 150
-                        : index === 6 // "G" column (Priority)
+                        : index === 6 
                           ? 100
-                          : index === 7 // "H" column (Due Date)
-                            ? 120 // Adjusted to a more reasonable date width
-                            : index === 8 // "I" column (Est. Value)
+                          : index === 7 
+                            ? 120 
+                            : index === 8 
                               ? 120
-                              : 100, // Other columns - default
+                              : 100, 
         })
       ),
     ];
     return cols;
   }, [editingCell, columnHeaders, updateCellValue, columnHelper]);
 
-  // Initialize react-table instance
   const table = useReactTable({
     data,
     columns,
@@ -380,11 +373,11 @@ const Spreadsheet = () => {
     columnResizeMode: "onChange",
   });
 
-  // Keyboard navigation effect
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!selectedCell) return;
-      if (editingCell) return; // Prevent navigation while editing
+      if (editingCell) return; 
 
       const tableElement = document.querySelector("table");
       if (!tableElement) return;
@@ -431,7 +424,7 @@ const Spreadsheet = () => {
           break;
         case "Enter":
           e.preventDefault();
-          // Only allow editing if it's not the 'id' column
+         
           if (selectedCell.columnId !== "id") {
             setEditingCell(selectedCell);
             console.log(
@@ -462,16 +455,12 @@ const Spreadsheet = () => {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [selectedCell, editingCell, table]);
 
-  // Calculate status counts (still useful if you want to use the total count)
- 
-
   const handleToolbarAction = (action: string) => {
     console.log(`${action} clicked`);
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col pb-16">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -520,7 +509,7 @@ const Spreadsheet = () => {
         </div>
       </div>
 
-      {/* Toolbar */}
+   
       <div className="bg-white border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -592,7 +581,7 @@ const Spreadsheet = () => {
         </div>
       </div>
 
-      {/* Action Tabs */}
+    
       <div className="bg-white border-b border-gray-200 px-4">
         <div className="flex items-center justify-between">
           <div className="flex space-x-6">
@@ -634,7 +623,7 @@ const Spreadsheet = () => {
         </div>
       </div>
 
-      {/* Spreadsheet */}
+    
       <div className="bg-white flex-1 flex flex-col">
         <div className="overflow-auto flex-1">
           <table className="min-w-full divide-y divide-gray-200">
@@ -688,7 +677,6 @@ const Spreadsheet = () => {
                       }`}
                       style={{ width: cell.column.getSize() }}
                       onClick={() => {
-                        // Allow selection of 'id' column if needed, but not editing
                         setSelectedCell({
                           rowIndex: index,
                           columnId: cell.column.id,
@@ -724,18 +712,13 @@ const Spreadsheet = () => {
             </tbody>
           </table>
         </div>
-
-        {/* Status Summary Bar - Sticky Bottom */}
         <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-gray-50 px-4 py-3 z-10">
           <div className="flex items-center space-x-6 text-sm">
-            {/* "All Orders" with green styling */}
             <div className="flex items-center">
               <span className="font-semibold text-green-700 bg-green-200 px-3 py-2 rounded-md border-t-4 border-green-500">
                 All Orders
               </span>
             </div>
-
-            {/* Other static status indicators */}
             <div className="flex items-center">
               <span className="text-gray-600">Pending</span>
             </div>
