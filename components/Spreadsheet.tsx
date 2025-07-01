@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react"; // Add useCallback
 import type { SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import {
   useReactTable,
@@ -168,11 +168,11 @@ const getPriorityBadge = (priority: string) => {
 };
 
 const Spreadsheet = () => {
+  // State declarations
   const [data, setData] = useState(createInitialData());
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
-
   const [selectedCell, setSelectedCell] = useState<{
     rowIndex: number;
     columnId: string;
@@ -182,9 +182,10 @@ const Spreadsheet = () => {
     columnId: string;
   } | null>(null);
 
+  // Helper for column definitions
   const columnHelper = createColumnHelper<SpreadsheetCell>();
 
-  // Define column headers
+  // Column Headers (no change here)
   const columnHeaders = [
     "", // For the 'id' column
     "Job Request",
@@ -208,128 +209,28 @@ const Spreadsheet = () => {
     "T",
   ];
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!selectedCell) return;
-
-      const tableElement = document.querySelector("table");
-      if (!tableElement) return;
-
-      const rows = Array.from(tableElement.querySelectorAll("tbody tr"));
-      const currentRow = rows[selectedCell.rowIndex];
-      if (!currentRow) return;
-
-      // Filter out the 'id' column when determining navigable cells for column index
-      const cells = Array.from(currentRow.querySelectorAll("td")).filter(
-        (cell) => cell.getAttribute("data-column-id") !== "id"
+  // --- MOVE updateCellValue HERE, BEFORE useMemo for columns ---
+  // Cell value update function
+  const updateCellValue = useCallback(
+    (
+      rowIndex: number,
+      columnId: string,
+      value: string | number // Value can be string or number based on SpreadsheetCell
+    ) => {
+      setData((prev) => {
+        const newData = [...prev];
+        newData[rowIndex] = { ...newData[rowIndex], [columnId]: value };
+        return newData;
+      });
+      console.log(
+        `Updated cell: Row ${rowIndex + 1}, Column ${columnId}, Value: ${value}`
       );
+    },
+    [] // No dependencies as it uses the functional update for setData
+  );
+  // --- END updateCellValue move ---
 
-      const currentCellIndex = cells.findIndex(
-        (cell) => cell.getAttribute("data-column-id") === selectedCell.columnId
-      );
-
-      let newRowIndex = selectedCell.rowIndex;
-      let newColumnId = selectedCell.columnId;
-
-      const columnIdsInOrder = table
-        .getAllColumns()
-        .filter((col) => col.id !== "id")
-        .map((col) => col.id);
-      const currentColumnGlobalIndex = columnIdsInOrder.indexOf(
-        selectedCell.columnId
-      );
-
-      switch (e.key) {
-        case "ArrowUp":
-          e.preventDefault();
-          newRowIndex = Math.max(0, selectedCell.rowIndex - 1);
-          console.log(`Navigating up to row ${newRowIndex + 1}`);
-          break;
-        case "ArrowDown":
-          e.preventDefault();
-          newRowIndex = Math.min(rows.length - 1, selectedCell.rowIndex + 1);
-          console.log(`Navigating down to row ${newRowIndex + 1}`);
-          break;
-        case "ArrowLeft":
-          e.preventDefault();
-          if (currentColumnGlobalIndex > 0) {
-            newColumnId = columnIdsInOrder[currentColumnGlobalIndex - 1];
-          }
-          console.log(`Navigating left to column ${newColumnId}`);
-          break;
-        case "ArrowRight":
-          e.preventDefault();
-          if (currentColumnGlobalIndex < columnIdsInOrder.length - 1) {
-            newColumnId = columnIdsInOrder[currentColumnGlobalIndex + 1];
-          }
-          console.log(`Navigating right to column ${newColumnId}`);
-          break;
-        case "Enter":
-          e.preventDefault();
-          setEditingCell(selectedCell);
-          console.log(
-            `Editing cell: Row ${selectedCell.rowIndex + 1}, Column ${
-              selectedCell.columnId
-            }`
-          );
-          break;
-        case "Escape":
-          e.preventDefault();
-          setEditingCell(null);
-          console.log("Stopped editing cell");
-          break;
-        default:
-          return;
-      }
-
-      if (
-        newRowIndex !== selectedCell.rowIndex ||
-        newColumnId !== selectedCell.columnId
-      ) {
-        setSelectedCell({ rowIndex: newRowIndex, columnId: newColumnId });
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [selectedCell, table]); // Add 'table' to dependency array as its structure is used
-
-  const updateCellValue = (
-    rowIndex: number,
-    columnId: string,
-    value: string | number // Value can be string or number based on SpreadsheetCell
-  ) => {
-    setData((prev) => {
-      const newData = [...prev];
-      newData[rowIndex] = { ...newData[rowIndex], [columnId]: value };
-      return newData;
-    });
-    console.log(
-      `Updated cell: Row ${rowIndex + 1}, Column ${columnId}, Value: ${value}`
-    );
-  };
-
-  // Calculate status counts
-  const statusCounts = useMemo(() => {
-    const counts = {
-      "In-process": 0,
-      "Need to start": 0,
-      Complete: 0,
-      Blocked: 0,
-      All: data.length,
-    };
-
-    data.forEach((row) => {
-      const status = row.C as string; // Ensure 'C' is treated as string for status
-      if (status && counts.hasOwnProperty(status)) {
-        counts[status as keyof typeof counts]++;
-      }
-    });
-
-    return counts;
-  }, [data]);
-
+  // Memoized column definitions
   const columns = useMemo(() => {
     const cols = [
       // Row number column
@@ -367,101 +268,103 @@ const Spreadsheet = () => {
           "R",
           "S",
           "T",
-        ] as Array<keyof Omit<SpreadsheetCell, "id">> // Explicitly type the array of column IDs
-      ).map((col, index) =>
-        columnHelper.accessor(col, {
-          header: columnHeaders[index + 1] || col, // Use columnHeaders for display
-          cell: (info) => {
-            const rowIndex = info.row.index;
-            const columnId = info.column.id;
-            const value = info.getValue() as string; // Assert value as string for display/input
-            const isEditing =
-              editingCell?.rowIndex === rowIndex &&
-              editingCell?.columnId === columnId;
+        ] as Array<keyof Omit<SpreadsheetCell, "id">>
+      ) // Explicitly type the array of column IDs
+        .map((col, index) =>
+          columnHelper.accessor(col, {
+            header: columnHeaders[index + 1] || col, // Use columnHeaders for display
+            cell: (info) => {
+              const rowIndex = info.row.index;
+              const columnId = info.column.id;
+              const value = info.getValue() as string; // Assert value as string for display/input
+              const isEditing =
+                editingCell?.rowIndex === rowIndex &&
+                editingCell?.columnId === columnId;
 
-            if (isEditing) {
-              return (
-                <input
-                  type="text"
-                  value={value}
-                  onChange={(e) =>
-                    updateCellValue(rowIndex, columnId, e.target.value)
-                  }
-                  onBlur={() => setEditingCell(null)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      setEditingCell(null);
+              if (isEditing) {
+                return (
+                  <input
+                    type="text"
+                    value={value}
+                    onChange={(e) =>
+                      updateCellValue(rowIndex, columnId, e.target.value)
                     }
-                  }}
-                  className="w-full border-none outline-none bg-transparent"
-                  autoFocus
-                />
-              );
-            }
+                    onBlur={() => setEditingCell(null)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        setEditingCell(null);
+                      }
+                    }}
+                    className="w-full border-none outline-none bg-transparent"
+                    autoFocus
+                  />
+                );
+              }
 
-            // Special styling for Status column (C)
-            if (columnId === "C" && value) {
+              // Special styling for Status column (C)
+              if (columnId === "C" && value) {
+                return (
+                  <div className="w-full h-full min-h-[20px] text-sm flex items-center">
+                    <span
+                      className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${getStatusBadge(
+                        value
+                      )}`}
+                    >
+                      {value}
+                    </span>
+                  </div>
+                );
+              }
+
+              // Special styling for Priority column (G)
+              if (columnId === "G" && value) {
+                return (
+                  <div className="w-full h-full min-h-[20px] text-sm flex items-center">
+                    <span
+                      className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${getPriorityBadge(
+                        value
+                      )}`}
+                    >
+                      {value}
+                    </span>
+                  </div>
+                );
+              }
+
               return (
                 <div className="w-full h-full min-h-[20px] text-sm flex items-center">
-                  <span
-                    className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${getStatusBadge(
-                      value
-                    )}`}
-                  >
-                    {value}
-                  </span>
+                  {value}
                 </div>
               );
-            }
-
-            // Special styling for Priority column (G)
-            if (columnId === "G" && value) {
-              return (
-                <div className="w-full h-full min-h-[20px] text-sm flex items-center">
-                  <span
-                    className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${getPriorityBadge(
-                      value
-                    )}`}
-                  >
-                    {value}
-                  </span>
-                </div>
-              );
-            }
-
-            return (
-              <div className="w-full h-full min-h-[20px] text-sm flex items-center">
-                {value}
-              </div>
-            );
-          },
-          // Set specific widths for different columns to prevent wrapping
-          size:
-            index === 0 // "A" column (Job Request)
-              ? 500
-              : index === 1 // "B" column (Submitted)
-              ? 120
-              : index === 2 // "C" column (Status)
-              ? 130
-              : index === 3 // "D" column (Submitter)
-              ? 150
-              : index === 4 // "E" column (URL)
-              ? 180
-              : index === 5 // "F" column (Assigned)
-              ? 150
-              : index === 6 // "G" column (Priority)
-              ? 100
-              : index === 7 // "H" column (Due Date)
-              ? 120 // Adjusted to a more reasonable date width
-              : index === 8 // "I" column (Est. Value)
-              ? 120
-              : 100, // Other columns - default
-        })
-      ),
+            },
+            // Set specific widths for different columns to prevent wrapping
+            size:
+              index === 0 // "A" column (Job Request)
+                ? 500
+                : index === 1 // "B" column (Submitted)
+                  ? 120
+                  : index === 2 // "C" column (Status)
+                    ? 130
+                    : index === 3 // "D" column (Submitter)
+                      ? 150
+                      : index === 4 // "E" column (URL)
+                        ? 180
+                        : index === 5 // "F" column (Assigned)
+                          ? 150
+                          : index === 6 // "G" column (Priority)
+                            ? 100
+                            : index === 7 // "H" column (Due Date)
+                              ? 120 // Adjusted to a more reasonable date width
+                              : index === 8 // "I" column (Est. Value)
+                                ? 120
+                                : 100, // Other columns - default
+          })
+        ),
     ];
     return cols;
-  }, [editingCell, columnHeaders, updateCellValue, columnHelper]); // Added columnHelper and updateCellValue to dependencies
+  }, [editingCell, columnHeaders, updateCellValue, columnHelper]); // Added updateCellValue to dependencies
 
+  // Initialize react-table instance
   const table = useReactTable({
     data,
     columns,
@@ -479,6 +382,114 @@ const Spreadsheet = () => {
     enableColumnResizing: true,
     columnResizeMode: "onChange",
   });
+
+  // Keyboard navigation effect - NOW 'table' is initialized when this effect runs
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!selectedCell) return;
+      if (editingCell) return; // Prevent navigation while editing
+
+      const tableElement = document.querySelector("table");
+      if (!tableElement) return;
+
+      const rows = Array.from(tableElement.querySelectorAll("tbody tr"));
+      const currentRow = rows[selectedCell.rowIndex];
+      if (!currentRow) return;
+
+      // Filter out the 'id' column when determining navigable cells for column index
+      const cells = Array.from(currentRow.querySelectorAll("td")).filter(
+        (cell) => cell.getAttribute("data-column-id") !== "id"
+      );
+
+      // We need to map `cell.column.id` to the actual column order from `table` instance
+      const columnIdsInOrder = table
+        .getAllColumns()
+        .filter((col) => col.id !== "id")
+        .map((col) => col.id);
+      const currentColumnGlobalIndex = columnIdsInOrder.indexOf(
+        selectedCell.columnId
+      );
+
+      let newRowIndex = selectedCell.rowIndex;
+      let newColumnId = selectedCell.columnId;
+
+      switch (e.key) {
+        case "ArrowUp":
+          e.preventDefault();
+          newRowIndex = Math.max(0, selectedCell.rowIndex - 1);
+          console.log(`Navigating up to row ${newRowIndex + 1}`);
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          newRowIndex = Math.min(rows.length - 1, selectedCell.rowIndex + 1);
+          console.log(`Navigating down to row ${newRowIndex + 1}`);
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          if (currentColumnGlobalIndex > 0) {
+            newColumnId = columnIdsInOrder[currentColumnGlobalIndex - 1];
+          }
+          console.log(`Navigating left to column ${newColumnId}`);
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          if (currentColumnGlobalIndex < columnIdsInOrder.length - 1) {
+            newColumnId = columnIdsInOrder[currentColumnGlobalIndex + 1];
+          }
+          console.log(`Navigating right to column ${newColumnId}`);
+          break;
+        case "Enter":
+          e.preventDefault();
+          // Only allow editing if it's not the 'id' column
+          if (selectedCell.columnId !== "id") {
+            setEditingCell(selectedCell);
+            console.log(
+              `Editing cell: Row ${selectedCell.rowIndex + 1}, Column ${
+                selectedCell.columnId
+              }`
+            );
+          }
+          break;
+        case "Escape":
+          e.preventDefault();
+          setEditingCell(null);
+          console.log("Stopped editing cell");
+          break;
+        default:
+          return;
+      }
+
+      if (
+        newRowIndex !== selectedCell.rowIndex ||
+        newColumnId !== selectedCell.columnId
+      ) {
+        setSelectedCell({ rowIndex: newRowIndex, columnId: newColumnId });
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [selectedCell, editingCell, table]); // 'table' is now in scope
+
+  // Calculate status counts
+  const statusCounts = useMemo(() => {
+    const counts = {
+      "In-process": 0,
+      "Need to start": 0,
+      Complete: 0,
+      Blocked: 0,
+      All: data.length,
+    };
+
+    data.forEach((row) => {
+      const status = row.C as string; // Ensure 'C' is treated as string for status
+      if (status && counts.hasOwnProperty(status)) {
+        counts[status as keyof typeof counts]++;
+      }
+    });
+
+    return counts;
+  }, [data]);
 
   const handleToolbarAction = (action: string) => {
     console.log(`${action} clicked`);
