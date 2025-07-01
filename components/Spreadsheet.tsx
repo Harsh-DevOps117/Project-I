@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 interface SpreadsheetCell {
+   id?: number;
   [key: string]: string | number;
 }
 
