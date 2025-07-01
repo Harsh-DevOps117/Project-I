@@ -744,34 +744,18 @@ const Spreadsheet = () => {
         <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-gray-50 px-4 py-3 z-10">
           <div className="flex items-center space-x-6 text-sm">
             <div className="flex items-center space-x-2">
-              <span className="text-gray-600">All</span>
-              <span className="bg-gray-200 text-gray-800 px-2 py-1 rounded text-xs font-medium">
-                {statusCounts.All}
-              </span>
             </div>
             <div className="flex items-center space-x-2">
-              <span className="text-gray-600">Order</span>
-              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
-                {statusCounts["Need to start"]}
-              </span>
+              <span className=""text-green-600 bg-green-200 border-t-4 p-2">All Order</span>
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-gray-600">Pending</span>
-              <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-medium">
-                {statusCounts["In-process"]}
-              </span>
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-gray-600">Received</span>
-              <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
-                {statusCounts["Complete"]}
-              </span>
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-gray-600">Arrived</span>
-              <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-medium">
-                {statusCounts["Blocked"]}
-              </span>
             </div>
           </div>
         </div>
