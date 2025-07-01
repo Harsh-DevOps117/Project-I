@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react"; // Add useCallback
+import { useState, useMemo, useEffect, useCallback } from "react";
 import type { SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import {
   useReactTable,
@@ -114,8 +114,8 @@ const createInitialData = (): SpreadsheetCell[] => {
 
   // Add sample data
   sampleData.forEach((row, index) => {
-    // Explicitly cast row to SpreadsheetCell to allow string indexing
-    const typedRow = row as Record<string, string>;
+    // Explicitly cast row to Record<string, string | number> to allow string indexing
+    const typedRow = row as Record<string, string | number>;
     const dataRow: SpreadsheetCell = { id: index + 1 };
     columns.forEach((col) => {
       dataRow[col] = typedRow[col] || ""; // Access with string index
@@ -209,8 +209,7 @@ const Spreadsheet = () => {
     "T",
   ];
 
-  // --- MOVE updateCellValue HERE, BEFORE useMemo for columns ---
-  // Cell value update function
+  // Cell value update function - Wrapped in useCallback for performance
   const updateCellValue = useCallback(
     (
       rowIndex: number,
@@ -228,7 +227,6 @@ const Spreadsheet = () => {
     },
     [] // No dependencies as it uses the functional update for setData
   );
-  // --- END updateCellValue move ---
 
   // Memoized column definitions
   const columns = useMemo(() => {
@@ -268,101 +266,100 @@ const Spreadsheet = () => {
           "R",
           "S",
           "T",
-        ] as Array<keyof Omit<SpreadsheetCell, "id">>
-      ) // Explicitly type the array of column IDs
-        .map((col, index) =>
-          columnHelper.accessor(col, {
-            header: columnHeaders[index + 1] || col, // Use columnHeaders for display
-            cell: (info) => {
-              const rowIndex = info.row.index;
-              const columnId = info.column.id;
-              const value = info.getValue() as string; // Assert value as string for display/input
-              const isEditing =
-                editingCell?.rowIndex === rowIndex &&
-                editingCell?.columnId === columnId;
+        ] as string[]
+      ).map((col: string, index) =>
+        columnHelper.accessor(col, {
+          header: columnHeaders[index + 1] || col, // Use columnHeaders for display
+          cell: (info) => {
+            const rowIndex = info.row.index;
+            const columnId = info.column.id;
+            const value = info.getValue() as string; // Assert value as string for display/input
+            const isEditing =
+              editingCell?.rowIndex === rowIndex &&
+              editingCell?.columnId === columnId;
 
-              if (isEditing) {
-                return (
-                  <input
-                    type="text"
-                    value={value}
-                    onChange={(e) =>
-                      updateCellValue(rowIndex, columnId, e.target.value)
+            if (isEditing) {
+              return (
+                <input
+                  type="text"
+                  value={value}
+                  onChange={(e) =>
+                    updateCellValue(rowIndex, columnId, e.target.value)
+                  }
+                  onBlur={() => setEditingCell(null)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      setEditingCell(null);
                     }
-                    onBlur={() => setEditingCell(null)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        setEditingCell(null);
-                      }
-                    }}
-                    className="w-full border-none outline-none bg-transparent"
-                    autoFocus
-                  />
-                );
-              }
+                  }}
+                  className="w-full border-none outline-none bg-transparent"
+                  autoFocus
+                />
+              );
+            }
 
-              // Special styling for Status column (C)
-              if (columnId === "C" && value) {
-                return (
-                  <div className="w-full h-full min-h-[20px] text-sm flex items-center">
-                    <span
-                      className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${getStatusBadge(
-                        value
-                      )}`}
-                    >
-                      {value}
-                    </span>
-                  </div>
-                );
-              }
-
-              // Special styling for Priority column (G)
-              if (columnId === "G" && value) {
-                return (
-                  <div className="w-full h-full min-h-[20px] text-sm flex items-center">
-                    <span
-                      className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${getPriorityBadge(
-                        value
-                      )}`}
-                    >
-                      {value}
-                    </span>
-                  </div>
-                );
-              }
-
+            // Special styling for Status column (C)
+            if (columnId === "C" && value) {
               return (
                 <div className="w-full h-full min-h-[20px] text-sm flex items-center">
-                  {value}
+                  <span
+                    className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${getStatusBadge(
+                      value
+                    )}`}
+                  >
+                    {value}
+                  </span>
                 </div>
               );
-            },
-            // Set specific widths for different columns to prevent wrapping
-            size:
-              index === 0 // "A" column (Job Request)
-                ? 500
-                : index === 1 // "B" column (Submitted)
-                  ? 120
-                  : index === 2 // "C" column (Status)
-                    ? 130
-                    : index === 3 // "D" column (Submitter)
-                      ? 150
-                      : index === 4 // "E" column (URL)
-                        ? 180
-                        : index === 5 // "F" column (Assigned)
-                          ? 150
-                          : index === 6 // "G" column (Priority)
-                            ? 100
-                            : index === 7 // "H" column (Due Date)
-                              ? 120 // Adjusted to a more reasonable date width
-                              : index === 8 // "I" column (Est. Value)
-                                ? 120
-                                : 100, // Other columns - default
-          })
-        ),
+            }
+
+            // Special styling for Priority column (G)
+            if (columnId === "G" && value) {
+              return (
+                <div className="w-full h-full min-h-[20px] text-sm flex items-center">
+                  <span
+                    className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${getPriorityBadge(
+                      value
+                    )}`}
+                  >
+                    {value}
+                  </span>
+                </div>
+              );
+            }
+
+            return (
+              <div className="w-full h-full min-h-[20px] text-sm flex items-center">
+                {value}
+              </div>
+            );
+          },
+          // Set specific widths for different columns to prevent wrapping
+          size:
+            index === 0 // "A" column (Job Request)
+              ? 500
+              : index === 1 // "B" column (Submitted)
+                ? 120
+                : index === 2 // "C" column (Status)
+                  ? 130
+                  : index === 3 // "D" column (Submitter)
+                    ? 150
+                    : index === 4 // "E" column (URL)
+                      ? 180
+                      : index === 5 // "F" column (Assigned)
+                        ? 150
+                        : index === 6 // "G" column (Priority)
+                          ? 100
+                          : index === 7 // "H" column (Due Date)
+                            ? 120 // Adjusted to a more reasonable date width
+                            : index === 8 // "I" column (Est. Value)
+                              ? 120
+                              : 100, // Other columns - default
+        })
+      ),
     ];
     return cols;
-  }, [editingCell, columnHeaders, updateCellValue, columnHelper]); // Added updateCellValue to dependencies
+  }, [editingCell, columnHeaders, updateCellValue, columnHelper]);
 
   // Initialize react-table instance
   const table = useReactTable({
@@ -383,7 +380,7 @@ const Spreadsheet = () => {
     columnResizeMode: "onChange",
   });
 
-  // Keyboard navigation effect - NOW 'table' is initialized when this effect runs
+  // Keyboard navigation effect
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!selectedCell) return;
@@ -396,12 +393,6 @@ const Spreadsheet = () => {
       const currentRow = rows[selectedCell.rowIndex];
       if (!currentRow) return;
 
-      // Filter out the 'id' column when determining navigable cells for column index
-      const cells = Array.from(currentRow.querySelectorAll("td")).filter(
-        (cell) => cell.getAttribute("data-column-id") !== "id"
-      );
-
-      // We need to map `cell.column.id` to the actual column order from `table` instance
       const columnIdsInOrder = table
         .getAllColumns()
         .filter((col) => col.id !== "id")
@@ -469,27 +460,10 @@ const Spreadsheet = () => {
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [selectedCell, editingCell, table]); // 'table' is now in scope
+  }, [selectedCell, editingCell, table]);
 
-  // Calculate status counts
-  const statusCounts = useMemo(() => {
-    const counts = {
-      "In-process": 0,
-      "Need to start": 0,
-      Complete: 0,
-      Blocked: 0,
-      All: data.length,
-    };
-
-    data.forEach((row) => {
-      const status = row.C as string; // Ensure 'C' is treated as string for status
-      if (status && counts.hasOwnProperty(status)) {
-        counts[status as keyof typeof counts]++;
-      }
-    });
-
-    return counts;
-  }, [data]);
+  // Calculate status counts (still useful if you want to use the total count)
+  const totalOrderCount = useMemo(() => data.length, [data]);
 
   const handleToolbarAction = (action: string) => {
     console.log(`${action} clicked`);
@@ -754,21 +728,26 @@ const Spreadsheet = () => {
         {/* Status Summary Bar - Sticky Bottom */}
         <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-gray-50 px-4 py-3 z-10">
           <div className="flex items-center space-x-6 text-sm">
-            <div className="flex items-center space-x-2"></div>
-            <div className="flex items-center space-x-2">
-              <span className="text-green-600 bg-green-200 border-t-4 p-2">
-                All Order
+            {/* "All Orders" with green styling */}
+            <div className="flex items-center">
+              <span className="font-semibold text-green-700 bg-green-200 px-3 py-2 rounded-md border-t-4 border-green-500">
+                All Orders: {totalOrderCount}
               </span>
             </div>
-            <div className="flex items-center space-x-2">
+
+            {/* Other static status indicators */}
+            <div className="flex items-center">
               <span className="text-gray-600">Pending</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-gray-600">Received</span>
+            <div className="flex items-center">
+              <span className="text-gray-600">Review</span>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center">
               <span className="text-gray-600">Arrived</span>
             </div>
+            <button className="px-3 py-3 text-gray-400 hover:text-gray-600">
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>
